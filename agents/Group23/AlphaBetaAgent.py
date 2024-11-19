@@ -11,7 +11,7 @@ class AlphaBetaAgent(AgentBase):
 
     _choices: list[Move]
     _board_size: int = 11
-    _DEPTH: int = 10
+    _DEPTH: int = 4
 
     def __init__(self, colour: Colour):
         super().__init__(colour)
@@ -35,13 +35,21 @@ class AlphaBetaAgent(AgentBase):
             Move: The agent's move
         """
 
+        # update valid moves
+        if opp_move != None:
+            for i, move in enumerate(self._choices):
+                if move[0] == opp_move.x and move[1] == opp_move.y:
+                    self._choices.pop(0)
+                    break
+
         current_player = (turn % 2) + 1
         best_move = None
-        best_score = int("-inf") if (current_player == 1) else int("inf")    # player 1 is the maximiser; player 2 is the minimiser
+        best_move_index = 0
+        best_score = float("-inf") if (current_player == 1) else float("inf")    # player 1 is the maximiser; player 2 is the minimiser
         depth = self._DEPTH
 
-        alpha = int("-inf")
-        beta = int("inf")
+        alpha = float("-inf")
+        beta = float("inf")
 
         # Search through every possible move
         for index, (i, j) in enumerate(self._choices):
@@ -51,26 +59,30 @@ class AlphaBetaAgent(AgentBase):
             board.set_tile_colour(i, j, self.colour)
 
             # perform minimax algorithm
-            score = self.miniMaxAlphaBeta(self.turn + 1, Colour.opposite(self.colour), board, valid_moves, depth - 1, alpha, beta)
+            score = self.miniMaxAlphaBeta(turn + 1, Colour.opposite(self.colour), board, valid_moves, depth - 1, alpha, beta)
 
             # revert move on board
-            board.set_tile_colour(None)
+            board.set_tile_colour(i, j, None)
 
             # update best move
             if current_player == 1 and score > best_score:
                 best_score = score
                 best_move = Move(i, j)
+                best_move_index = index
 
                 # update alpha
                 alpha = max(score, alpha)
             elif current_player == 2 and score < best_score:
                 best_score = score
                 best_move = Move(i, j)
+                best_move_index = index
                 
                 # update beta
                 beta = min(score, beta)
-
         
+        # Perform the move
+        self._choices.pop(best_move_index)
+
         return best_move
     
     def miniMaxAlphaBeta(self, turn: int, colour: Colour, board: Board, valid_moves, depth, alpha, beta) -> Move:
@@ -95,7 +107,7 @@ class AlphaBetaAgent(AgentBase):
 
         # Step case: depth-limited search through all valid moves and taking the best move out of them all
         current_player = (turn % 2) + 1
-        best_score = int("-inf") if (current_player == 1) else int("inf")    # player 1 is the maximiser; player 2 is the minimiser
+        best_score = float("-inf") if (current_player == 1) else float("inf")    # player 1 is the maximiser; player 2 is the minimiser
 
         # Search through every possible move
         for index, (i, j) in enumerate(valid_moves):
@@ -105,10 +117,10 @@ class AlphaBetaAgent(AgentBase):
             board.set_tile_colour(i, j, colour)
 
             # continue minimax search down this path
-            score = self.miniMaxAlphaBeta(turn + 1, Colour.opposite(colour), board, updated_valid_moves, depth - 1)
+            score = self.miniMaxAlphaBeta(turn + 1, Colour.opposite(colour), board, updated_valid_moves, depth - 1, alpha, beta)
             
             # revert move on board
-            board.set_tile_colour(None)
+            board.set_tile_colour(i, j, None)
 
             # update best move
             if current_player == 1:
@@ -130,4 +142,4 @@ class AlphaBetaAgent(AgentBase):
     
     def evaluateBoard(self, board):
         # TODO Implement board evaluation heuristic
-        pass
+        return 1
