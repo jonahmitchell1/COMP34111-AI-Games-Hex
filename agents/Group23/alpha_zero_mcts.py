@@ -127,7 +127,7 @@ class MCTS:
         # Play randomly until the game ends
         current_colour = self.colour.opposite()
 
-        MAX_DEPTH = 50
+        MAX_DEPTH = 40
         current_depth = 0
 
         while (not simulation_board.has_ended(colour=current_colour) and
