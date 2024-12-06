@@ -5,19 +5,179 @@ from src.Board import Board
 from src.Colour import Colour
 from src.Move import Move
 
+from collections import deque, defaultdict
 
+
+# ========= HEURISTIC METHODS =========
+class Heuristics:
+    NETWORK_FLOW_HEURISTIC = "network_flow_heuristic"
+
+# === NETWORK FLOW HEURISTIC ===
+# In this implementation, we create a flow network that represents the board state. We find the maximum flow heuristic by using the Edmonds-Karp algorithm
+"""
+A class to represent the flow network of the board. Nodes are represented by a position (x, y), and edges are represented by a connection ((x', y'), c).
+"""
+class FlowNetwork():
+    # Represents the network by mapping NetworkNodes to NetworkEdges
+    network = {}
+
+    def __init__(self, vertices, edges):
+        # Add vertices
+        for vertex in vertices:
+            self.network[vertex] = []
+        
+        # Add edges
+        for edge in edges:
+            vertexStem = edge[0]
+            self.network[vertexStem].append((edge[1], edge[2]))
+    
+    def getEdges(self, vertex):
+        return self.network[vertex]
+
+    def removeVertex(self, vertex):
+        self.network[vertex] = None
+    
+    def removeEdge(self, edge):
+        vertexStem, vertexEnd = edge[0], edge[1]
+        edges = self.network[vertexStem]
+        isEdgeRemoved = False
+
+        for i, currentEdge in enumerate(edges):
+            if currentEdge[0] == vertexStem and currentEdge[1] == vertexEnd:
+                edges.pop(i)
+                isEdgeRemoved = True
+        
+        if not isEdgeRemoved:
+            print("Error: attempted to remove an edge that does not exist in the network. Cancelling the operation.")
+        else:
+            self.network[vertexStem] = edges
+
+    def updateEdges(self, edges):
+        self.clearEdges()
+        for edge in edges:
+            vertexStem = edge[0]
+            self.network[vertexStem].append((edge[1], edge[2]))
+    def clearEdges(self):
+        for key in self.network.keys():
+            self.network[key] = []
+
+    # Finds maximum flow using the Edmonds-Karp algorithm
+    def findMaximumFlow(self):
+        source = (0, 0)
+        sink = (0, 10)
+        # Prepare capacity and flow matrices
+        capacity = defaultdict(lambda: defaultdict(int))
+        for u in self.network:
+            for v, cap in self.network[u]:
+                capacity[u][v] += cap  # Handle multi-edges by summing capacities
+        
+        # Initialize flow and residual graph
+        flow = defaultdict(lambda: defaultdict(int))
+        
+        def bfs():
+            """Finds an augmenting path using BFS and returns it along with the minimum capacity."""
+            parent = {}  # To store the path
+            visited = set()
+            queue = deque([((source), float('inf'))])  # (current node, flow so far)
+            
+            while queue:
+                u, flow_so_far = queue.popleft()
+                if u in visited:
+                    continue
+                visited.add(u)
+                
+                for v in capacity[u]:
+                    residual_capacity = capacity[u][v] - flow[u][v]
+                    if v not in visited and residual_capacity > 0:  # Can traverse
+                        parent[v] = u
+                        new_flow = min(flow_so_far, residual_capacity)
+                        if v == sink:  # Reached the sink
+                            return parent, new_flow
+                        queue.append((v, new_flow))
+            
+            return None, 0
+        
+        max_flow = 0
+        
+        # Augment flow until no more augmenting paths
+        while True:
+            parent, path_flow = bfs()
+            if path_flow == 0:
+                break  # No more augmenting paths
+            
+            max_flow += path_flow
+            # Update flow and residual graph
+            v = sink
+            while v != source:
+                u = parent[v]
+                flow[u][v] += path_flow
+                flow[v][u] -= path_flow  # Reverse flow for residual capacity
+                v = u
+        
+        return max_flow
+
+
+# ========= ALPHA-BETA SERACH AGENT =========
 class AlphaBetaAgent(AgentBase):
     """This class implements an alpha-beta search agent to play Hex."""
 
     _choices: list[Move]
     _board_size: int = 11
     _DEPTH: int = 4
+    _heuristic = Heuristics.NETWORK_FLOW_HEURISTIC
+    _network = None   # used for the network flow heuristic
+
+    def initialise_network(self):
+        start_vertex = [(0, 0)]
+        end_vertex = [(0, 10)]
+        other_vertices = [(i, j) for i in range(0, 11) for j in range(1, 10)]
+        all_vertices = start_vertex + end_vertex + other_vertices
+
+        # create edges between vertices
+        edges = []
+        # start and end connections
+        for i in range(0, 11):
+            # creating edges for the start node
+            edges.append(((0, 0), (i, 1), 1))
+            edges.append(((i, 1), (0, 0), 1))
+
+            # creating edges for the end node
+            edges.append(((0, 10), (i, 9), 1))
+            edges.append(((i, 9), (0, 10), 1))
+            
+        # connections in between start and end nodes nodes
+        for i in range(0, 11):
+            for j in range(1, 10):
+                # left
+                if i - 1 >= 0:
+                    edges.append(((i, j), (i-1, j), 1))
+                # right
+                if i + 1 <= 10:
+                    edges.append(((i, j), (i+1, j), 1))
+                # up
+                if j - 1 >= 1:
+                    edges.append(((i, j), (j-1), 1))
+                # down
+                if j + 1 <= 9:
+                    edges.append(((i, j), (i, j+1), 1))
+                # diagonal-down
+                if i - 1 >= 0 and j + 1 <= 9:
+                    edges.append(((i, j), (i-1, j+1), 1))
+                # diagonal-up
+                if i + 1 <= 10 and j - 1 >= 1:
+                    edges.append(((i, j), (i+1, j-1), 1))
+        
+        # create the network
+        self._network = FlowNetwork(all_vertices, edges)
 
     def __init__(self, colour: Colour):
         super().__init__(colour)
         self._choices = [
             (i, j) for i in range(self._board_size) for j in range(self._board_size)
         ]
+
+        if self._heuristic == Heuristics.NETWORK_FLOW_HEURISTIC:
+            self.initialise_network()
 
     def make_move(self, turn: int, board: Board, opp_move: Move | None) -> Move:
         """The game engine will call this method to request a move from the agent.
@@ -140,6 +300,78 @@ class AlphaBetaAgent(AgentBase):
         
         return best_score
     
+    def create_edge_capacity(self, player_colour, tile_colour_stem, tile_colour_end):
+        # both tiles are taken by the player
+        if tile_colour_stem == player_colour and tile_colour_end == player_colour:
+            return 1000
+        # a tile is untaken
+        elif tile_colour_stem == None or tile_colour_end == None:
+            return 1
+        
+        # either tile is the opponent's tile - no edge
+        return 0
+
+    def create_network(self, board, colour):
+        """
+        Creates the graph network to represent the current board state in the perspective the player.
+        :param board: represents the current board state
+        :param colour: represents the player's colour
+        """
+        # create edges between vertices
+        edges = []
+        # start and end connections
+        for i in range(0, 11):
+            # creating edges for the start node
+            capacity = self.create_edge_capacity(colour, colour, board.tiles[i][1].colour)
+            
+            edges.append(((0, 0), (i, 1), capacity))
+            edges.append(((i, 1), (0, 0), capacity))
+
+            # creating edges for the end node
+            capacity = self.create_edge_capacity(colour, board.tiles[i][9].colour, colour)
+
+            edges.append(((0, 10), (i, 9), capacity))
+            edges.append(((i, 9), (0, 10), capacity))
+            
+        # connections in between start and end nodes nodes
+        for i in range(0, 11):
+            for j in range(1, 10):
+                # left
+                if i - 1 >= 0:
+                    capacity = self.create_edge_capacity(colour, board.tiles[i][j].colour, board.tiles[i-1][j].colour)
+                    edges.append(((i, j), (i-1, j), capacity))
+                # right
+                if i + 1 <= 10:
+                    capacity = self.create_edge_capacity(colour, board.tiles[i][j].colour, board.tiles[i+1][j].colour)
+                    edges.append(((i, j), (i+1, j), capacity))
+                # up
+                if j - 1 >= 1:
+                    capacity = self.create_edge_capacity(colour, board.tiles[i][j].colour, board.tiles[i][j-1].colour)
+                    edges.append(((i, j), (j-1), capacity))
+                # down
+                if j + 1 <= 9:
+                    capacity = self.create_edge_capacity(colour, board.tiles[i][j].colour, board.tiles[i][j+1].colour)
+                    edges.append(((i, j), (i, j+1), capacity))
+                # diagonal-down
+                if i - 1 >= 0 and j + 1 <= 9:
+                    capacity = self.create_edge_capacity(colour, board.tiles[i][j].colour, board.tiles[i-1][j+1].colour)
+                    edges.append(((i, j), (i-1, j+1), capacity))
+                # diagonal-up
+                if i + 1 <= 10 and j - 1 >= 1:
+                    capacity = self.create_edge_capacity(colour, board.tiles[i][j].colour, board.tiles[i+1][j-1].colour)
+                    edges.append(((i, j), (i+1, j-1), capacity))
+
+        # Update network edges  
+        self._network.updateEdges(edges)
+        return self._network
+    
     def evaluateBoard(self, board):
-        # TODO Implement board evaluation heuristic
-        return 1
+        if self._heuristic == Heuristics.NETWORK_FLOW_HEURISTIC:
+            # Initialise the network
+            network = self.create_network(board, self.colour)
+
+            # Find the maximum flow heuristic
+            heuristic = network.findMaximumFlow()
+
+            return heuristic
+
