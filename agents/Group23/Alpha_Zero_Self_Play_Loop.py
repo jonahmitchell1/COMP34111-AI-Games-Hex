@@ -1,4 +1,5 @@
 import logging
+from typing import override
 
 from src.Colour import Colour
 from agents.Group23.AlphaZeroAgent import AlphaZeroAgent
@@ -6,7 +7,8 @@ from src.Colour import Colour
 from src.Game import Game
 from src.Player import Player
 from agents.Group23.Alpha_Zero_NN import Alpha_Zero_NN
-from time import sleep
+from multiprocessing import Pool
+import random
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(filename='self_play.log', encoding='utf-8', level=logging.info)
@@ -50,7 +52,12 @@ class alpha_zero_self_play_loop:
         current_game = self.set_up_game()
         current_game.run()
 
+        random_hash = random.getrandbits(128)
+
         winner_colour = current_game.board.get_winner()
+
+        self._Student_Network._commit_experience_from_buffer(winner_colour=winner_colour, override_path=f"/thread_data/data_{random_hash}.txt")
+        self._Teacher_Network._commit_experience_from_buffer(winner_colour=winner_colour, override_path=f"/thread_data/data_{random_hash}.txt")
 
         return winner_colour
 
@@ -59,24 +66,19 @@ class alpha_zero_self_play_loop:
         for sim_iter in range(self._simulation_iterations):
             logger.info(f"Simulation iteration {sim_iter+1} of {self._simulation_iterations}")
 
-            win_count = 0
+            results = []
 
-            for i in range(self._max_games_per_simulation):
-                logger.info(f"Game {i+1} of {self._max_games_per_simulation}")
-                winner_colour = self._simulate_game()
+            with Pool(processes=4) as pool:
+                # logger.info(f"Game {i+1} of {self._max_games_per_simulation}")
+                args = [(self,)] * self._max_games_per_simulation
+                results = pool.map(self._simulate_game, args)
 
-                logger.info(f"Student network won: {winner_colour == Colour.RED}")
-                if winner_colour == Colour.RED:
-                    win_count += 1
-
-                print("Committing experience to networks")
-                self._Student_Network._commit_experience_from_buffer(winner_colour=winner_colour)
-                sleep(2) # INCASE OF RACE CONDITION
-                self._Teacher_Network._commit_experience_from_buffer(winner_colour=winner_colour)
-                sleep(2) # INCASE OF RACE CONDITION
+            Alpha_Zero_NN.merge_thread_experience_files_in_folder('/thread_data') # merge all thread data into one file
+            
+            win_count = sum(1 for winner in results if winner == Colour.RED)
 
             # check majority win rate and swap networks if necessary after 70% win rate
-            if win_count/self._max_games_per_simulation > 0.7:
+            if win_count / self._max_games_per_simulation > 0.55:
                 self._swap_student_teacher_networks()
             else:
                 print("Majority win rate not reached, continuing training student without swapping networks")

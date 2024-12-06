@@ -37,7 +37,7 @@ class Alpha_Zero_NN:
         else:
             print("Creating new model - Model not found at path: ", path)
             self._model = self._create_model()
-            self._train()
+            # self._train()
 
     def __init__(self, board_size:int):
         """Initializes the AlphaZero neural network model
@@ -123,6 +123,17 @@ class Alpha_Zero_NN:
         """
         self._experience_data_buffer.append((board_state, mcts_prob, player_colour))
 
+    def merge_thread_experience_files_in_folder(self, folder_path:str):
+        _original_game_experience = self.load_experience_from_file(self.dataset_path)
+
+        if os.path.exists(folder_path):
+            all_files = os.listdir(folder_path)
+            for file in all_files:
+                _original_game_experience = pd.concat([_original_game_experience, self.load_experience_from_file(f"{folder_path}/{file}")])
+                # os.remove(f"{folder_path}/{file}")
+            
+        self.save_experience_to_file(self.dataset_path, _original_game_experience)
+
     def save_experience_to_file(self, path:str, _game_experience:pd.DataFrame):
         """Save batch experience to file
 
@@ -131,12 +142,14 @@ class Alpha_Zero_NN:
         """
         _game_experience.to_csv(path, index=False)
 
-    def _commit_experience_from_buffer(self, winner_colour:float):
+    def _commit_experience_from_buffer(self, winner_colour:float, override_path:str=None):
         """Commit experience from buffer to game experience
 
         Args:
             winner_colour (float): game winner to update z values
         """
+        if override_path:
+            self.dataset_path = override_path
 
         _game_experience = self.load_experience_from_file(self.dataset_path)
 
