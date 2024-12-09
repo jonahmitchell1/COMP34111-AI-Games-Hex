@@ -124,7 +124,7 @@ class AlphaBetaAgent(AgentBase):
 
     _choices: list[Move]
     _board_size: int = 11
-    _DEPTH: int = 3
+    _DEPTH: int = 2
     _heuristic = Heuristics.TWO_DISTANCE_HEURISTIC#.NETWORK_FLOW_HEURISTIC # or Heuristics.TWO_DISTANCE_HEURISTIC
     _network = None   # used for the network flow heuristic
 
@@ -202,6 +202,14 @@ class AlphaBetaAgent(AgentBase):
                 if move[0] == opp_move.x and move[1] == opp_move.y:
                     self._choices.pop(0)
                     break
+
+        # remove already taken tiles from choices list
+        valid_moves = []
+        for row in board._tiles:
+            for i in range(len(row)):
+                if row[i]._colour == None:
+                    valid_moves.append( (row[i]._x, row[i]._y) )
+        self._choices = valid_moves
 
         current_player = (turn % 2) + 1
         best_move = None
@@ -455,7 +463,7 @@ class AlphaBetaAgent(AgentBase):
                 if len(path) > shortestDistance:
                     path.append("End")
                     break #path is the path taken
-                if loopCount >= 200:
+                if loopCount >= 15:
                     path = shortestPath
                     path.append("End")
                     break
