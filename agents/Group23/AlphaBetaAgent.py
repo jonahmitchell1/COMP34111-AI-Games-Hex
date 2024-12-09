@@ -11,6 +11,7 @@ from collections import deque, defaultdict
 # ========= HEURISTIC METHODS =========
 class Heuristics:
     NETWORK_FLOW_HEURISTIC = "network_flow_heuristic"
+    TWO_DISTANCE_HEURISTIC = "two_distance_heuristic"
 
 # === NETWORK FLOW HEURISTIC ===
 # In this implementation, we create a flow network that represents the board state. We find the maximum flow heuristic by using the Edmonds-Karp algorithm
@@ -123,8 +124,8 @@ class AlphaBetaAgent(AgentBase):
 
     _choices: list[Move]
     _board_size: int = 11
-    _DEPTH: int = 4
-    _heuristic = Heuristics.NETWORK_FLOW_HEURISTIC
+    _DEPTH: int = 3
+    _heuristic = Heuristics.TWO_DISTANCE_HEURISTIC#.NETWORK_FLOW_HEURISTIC # or Heuristics.TWO_DISTANCE_HEURISTIC
     _network = None   # used for the network flow heuristic
 
     def initialise_network(self):
@@ -374,4 +375,146 @@ class AlphaBetaAgent(AgentBase):
             heuristic = network.findMaximumFlow()
 
             return heuristic
+        
+        if self._heuristic ==Heuristics.TWO_DISTANCE_HEURISTIC:
+
+            return self.TwoDistance(board)
+
+
+    def TwoDistance(self, board):
+        # Using paper https://www.cs.cornell.edu/~adith/docs/y_hex.pdf QueenBee "two-distance" method
+
+        # convert to node format    
+        # graph with key (x,y) contains all the neighbour tiles
+        #====================================================================================================
+        tiles2DArray = board._tiles   #[x][y]
+        graph = {}
+        for i in range(len(tiles2DArray)): #columns
+            for j in range(len(tiles2DArray[i])): #rows
+                neighbours = []
+                for x,y in zip(tiles2DArray[i][j].I_DISPLACEMENTS,tiles2DArray[i][j].J_DISPLACEMENTS):
+                    #dont add out of bounds neighbours
+                    if x+i < 0 or x+i > board._size-1 or y+j < 0 or y+j > board._size-1:
+                        continue   
+                    neighbours.append(tiles2DArray[i+x][j+y])
+                graph[(i,j)] = neighbours
+        
+
+        # join/cut relevant edges of graph depending on colour of tile
+        #=====================================================================================================
+
+        RedGraph = self.cutGraph(graph, Colour.RED, tiles2DArray)
+        RedGraph = self.reduceGraph(RedGraph, Colour.RED, tiles2DArray)
+        BlueGraph = self.cutGraph(graph, Colour.BLUE, tiles2DArray)
+        BlueGraph = self.reduceGraph(BlueGraph, Colour.BLUE, tiles2DArray)
+
+        # using reduced graph, find second shortest path
+        #======================================================================================================
+
+        redDistance = self.getSecondDistance(RedGraph, Colour.RED, tiles2DArray)
+        blueDistance = self.getSecondDistance(BlueGraph, Colour.BLUE, tiles2DArray)
+
+        if self.colour == Colour.RED:
+            return blueDistance - redDistance
+        else:
+            return redDistance-blueDistance
+    
+    def getSecondDistance(self, graph, colour, tiles2DArray):
+        #add the two nodes to get graph distance between.
+        if colour == Colour.RED:
+            graph["Start"] = [(0,0),(1,0),(2,0),(3,0),(4,0),(5,0),(6,0),(7,0),(8,0),(9,0),(10,0)]
+            graph["End"] = [(0,10),(1,10),(2,10),(3,10),(4,10),(5,10),(6,10),(7,10),(8,10),(9,10),(10,10)]
+        if colour == Colour.BLUE:
+            graph["Start"] = [(0,0), (0,1), (0,2), (0,3), (0,4), (0,5), (0,6), (0,7), (0,8), (0,9), (0,10)]
+            graph["End"] = [(10,0), (10,1), (10,2), (10,3), (10,4), (10,5), (10,6), (10,7), (10,8), (10,9), (10,10)]
+        
+
+        shortestDistance = 100000
+        shortestPath = None
+        loopCount = 0 #prevent infinite loop if there is only 1 path
+
+        #bfs
+        from collections import deque
+        queue = deque([("Start", ["Start"])])
+        visited = set()
+
+        while queue:
+            current_node, path = queue.popleft()
+
+            # skip visited nodes
+            if current_node in visited:
+                continue
+            visited.add(current_node)
+
+            if current_node in graph["End"]:
+                #instead of ending immediatly find the first path with length +1 of the shortest
+                if shortestPath == None:
+                    shortestPath = path
+                    shortestDistance = len(path)
+                    continue
+                if len(path) > shortestDistance:
+                    path.append("End")
+                    break #path is the path taken
+                if loopCount >= 200:
+                    path = shortestPath
+                    path.append("End")
+                    break
+                else:
+                    loopCount += 1
+
+
+            #add unvisited neighbours to queue
+            for neighbor in graph.get(current_node, []):
+                if neighbor not in visited:
+                    queue.append((neighbor, path + [neighbor]))
+
+        #print(graph["End"])
+        #print(path)
+        #print(len(path))
+        return len(path)
+        #while True:
+        #    continue
+
+
+    def reduceGraph(self, graph, colour, tiles2DArray):
+        
+        #this method is jank im sorry
+
+        graphJoined = {key: [] for key in graph}
+
+        for coords, neighbours in graph.items():
+            tile = tiles2DArray[coords[0]][coords[1]]
+            
+            if tile._colour == None:
+                for neighbour in neighbours:
+                    if neighbour._colour == None:
+                        graphJoined[coords].append((neighbour._x,neighbour._y)) #dont change unclaimed tile 
+            elif tile._colour == colour:
+               for i, neighbour1 in enumerate(neighbours):
+                 for neighbour2 in neighbours[i + 1:]: 
+                    if neighbour2 not in graphJoined[(neighbour1._x,neighbour1._y)] and neighbour2._colour == None:
+                        graphJoined[(neighbour1._x,neighbour1._y)].append((neighbour2._x,neighbour2._y))#(neighbour2._x,neighbour2._y))
+                    if neighbour1 not in graphJoined[(neighbour2._x,neighbour2._y)] and neighbour1._colour == None:
+                        graphJoined[(neighbour2._x,neighbour2._y)].append((neighbour1._x,neighbour1._y))
+            
+            # print(f"Graph: {graphJoined}")
+            # print(f"Tile: {tile}")
+            # print(f"Neighbours: {neighbours}")
+            # print(f"Joined Graph: {graphJoined}")
+            # print("")
+        return graphJoined
+    
+    def cutGraph(self, graph, colour, tiles2DArray):
+        
+        # for a tile, remve any neighbours of opposing colour
+        graphCut = {}
+        for coords, neighbours in graph.items():
+            tile = tiles2DArray[coords[0]][coords[1]] #get tile object
+            if tile._colour == None:
+                graphCut[coords] = neighbours
+                continue #dont change unclaimed nodes
+            
+            neighbours = [neighbour for neighbour in neighbours if tile._colour == neighbour._colour or neighbour._colour == None]
+            graphCut[coords] = neighbours
+        return graphCut
 
