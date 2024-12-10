@@ -36,7 +36,7 @@ class TreeNode:
         """Selects the best child using UCT."""
         return max(
             self.children,
-            key=lambda child: (child.wins / child.visits) + exploration_param * math.sqrt(math.log(self.visits) / child.visits)
+            key=lambda child: (child.wins / child.visits) + exploration_param * math.sqrt(math.log(self.visits) / child.visits) if child.visits > 0 else float('inf')
         )
 
     def add_child(self, move):
