@@ -422,6 +422,7 @@ class AlphaBetaAgent(AgentBase):
         redDistance = self.getSecondDistance(RedGraph, Colour.RED, tiles2DArray)
         blueDistance = self.getSecondDistance(BlueGraph, Colour.BLUE, tiles2DArray)
 
+        return blueDistance - redDistance
         if self.colour == Colour.RED:
             return blueDistance - redDistance
         else:
