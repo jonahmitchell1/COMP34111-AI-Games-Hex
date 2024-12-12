@@ -58,7 +58,6 @@ class MCTS:
             self._backpropagate(node, result)
 
         finish_time = time.time()
-        print(f'Ran {iterations} simulations in {finish_time - start_time:.2f}s')
 
         # Choose the most visited child as the best move
         best_child = max(root.children, key=lambda child: child.wins / child.visits)

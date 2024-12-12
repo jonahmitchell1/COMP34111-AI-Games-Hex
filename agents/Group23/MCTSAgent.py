@@ -11,8 +11,6 @@ from agents.Group23.mcts import MCTS
 
 class MCTSAgent(AgentBase):
     """An agent that uses MCTS for Hex."""
-    logger = logging.getLogger(__name__)
-
     # Strong opening moves for the agent.
     # Red moves first, then Blue.
     # Based on https://www.hexwiki.net/index.php/Openings_on_11_x_11#Without_swap
@@ -51,12 +49,10 @@ class MCTSAgent(AgentBase):
         """Selects a move using MCTS."""
         # First move - choose a fair move
         if opp_move == None:
-            self.logger.info('First move, choosing a fair move.')
             return choice(self.fair_opening_moves)
 
         if turn == 2 and opp_move in self.strong_opening_moves:
             # If the opponent makes a strong opening move, use the pie rule to swap.
-            self.logger.info('Opponent made a strong opening move, swapping.')
             return Move(-1, -1)
 
         turn_length = self.allowed_time(turn)
@@ -67,14 +63,6 @@ class MCTSAgent(AgentBase):
 
         self.root = self.root.get_child(opp_move) # Update the node to the child corresponding to the opponent's move
         self.root, _ = mcts.run(self.root)
-
-        print(f'====================')
-        print(f'Chose best child:')
-        print(f' - Move: {self.root.move}')
-        print(f' - Wins: {self.root.wins}')
-        print(f' - Visits: {self.root.visits}')
-        print(f'From {len(self.root.children)} possible moves.')
-        print(f'====================')
 
         return self.root.move
     
@@ -102,5 +90,4 @@ class MCTSAgent(AgentBase):
         turn_weight = weights[turn_number - 1]  # Turn number is 1-indexed.
         turn_time = (turn_weight / total_weight) * total_time
 
-        print(f'Allocated {turn_time:.2f}s for turn {turn_number}')
         return turn_time
