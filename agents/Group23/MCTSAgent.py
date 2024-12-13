@@ -10,6 +10,8 @@ from src.Colour import Colour
 from agents.Group23.mcts import MCTS
 from agents.Group23.zobrist_hasher import ZobristHasher
 
+from copy import deepcopy
+
 class MCTSAgent(AgentBase):
     """An agent that uses MCTS for Hex."""
     logger = logging.getLogger(__name__)
@@ -66,6 +68,21 @@ class MCTSAgent(AgentBase):
         move = self.zobrist_hasher.get_move(hash)
         if move is not None:
             return Move(move[0], move[1])
+        
+        #manually check if a direct winning move exists (adds 0.008s per move but worth it)
+        boardCopy = deepcopy(board)
+        for row in boardCopy._tiles:
+            for attemptedMove in row:
+                if attemptedMove._colour != None:
+                    continue #dont overwrite an existing move
+                prevColour = attemptedMove._colour
+                boardCopy._tiles[attemptedMove._x][attemptedMove._y]._colour = self.colour
+                if boardCopy.has_ended(self.colour):
+                    #print("RAHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH MAX IS THE BEST \n \n \n \n MAX IS THE BEST \n")
+                    return Move(attemptedMove._x,attemptedMove._y)
+                else:
+                    boardCopy._tiles[attemptedMove._x][attemptedMove._y]._colour = prevColour #revert change
+
 
         turn_length = self.allowed_time(turn)
         mcts = MCTS(self.colour, max_simulation_length=turn_length)
