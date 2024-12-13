@@ -15,8 +15,8 @@ class Utilities:
             x_n = tile.x + Tile.I_DISPLACEMENTS[idx]
             y_n = tile.y + Tile.J_DISPLACEMENTS[idx]
             if Utilities.is_on_board(board, x_n, y_n):
-                tile = board.tiles[x_n][y_n]
-                neighbours.append(tile)
+                tmp = board.tiles[x_n][y_n]
+                neighbours.append(tmp)
         return neighbours
     
     @staticmethod

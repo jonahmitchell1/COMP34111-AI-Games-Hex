@@ -47,7 +47,7 @@ class MCTS:
 
         iterations = 0
         start_time = time.time()
-        number_of_workers = os.cpu_count()
+        number_of_workers = 1
 
         if number_of_workers is None:
             number_of_workers = 8

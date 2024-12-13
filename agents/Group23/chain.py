@@ -14,16 +14,28 @@ class Chain:
         self.colour = colour
 
         self.tiles = set()
-        self.is_nw_edge = False
-        self.is_se_edge = False
+        self.is_n_edge = False
+        self.is_e_edge = False
+        self.is_s_edge = False
+        self.is_w_edge = False
 
         self._influence_region = None
 
+    def __eq__(self, other):
+        return isinstance(other, Chain) and self.tiles == other.tiles
+
+    def __hash__(self):
+        return hash(tuple(self.tiles))
+
     def add_tile(self, position: tuple[int, int]):
-        if position[0] == 0 or position[1] == 0:
-            self.is_nw_edge = True
-        if position[0] == self.size - 1 or position[1] == self.size - 1:
-            self.is_se_edge = True
+        if position[0] == 0 :
+            self.is_n_edge = True
+        if position[1] == 0:
+            self.is_w_edge = True
+        if position[0] == self.size - 1:
+            self.is_s_edge = True
+        if position[1] == self.size - 1:
+            self.is_e_edge = True
 
         self.tiles.add(position)
 
@@ -39,20 +51,30 @@ class Chain:
     
     def merge_chains(self, chain):
         self.tiles |= chain.tiles
-        self.is_nw_edge = self.is_nw_edge or chain.is_nw_edge
-        self.is_se_edge = self.is_se_edge or chain.is_se_edge
+        self.is_n_edge = self.is_n_edge or chain.is_n_edge
+        self.is_e_edge = self.is_e_edge or chain.is_e_edge
+        self.is_s_edge = self.is_s_edge or chain.is_s_edge
+        self.is_w_edge = self.is_w_edge or chain.is_w_edge
 
         # Clear the influence region (cache invalidation)
         self.influence_region = None
 
     @property
     def chain_type(self) -> int:
-        if self.is_nw_edge and self.is_se_edge:
-            return 'TopBottom' if self.colour == Colour.RED else 'LeftRight'
-        if self.is_nw_edge:
-            return 'Top' if self.colour == Colour.RED else 'Left'
-        if self.is_se_edge:
-            return 'Bottom' if self.colour == Colour.RED else 'Right'
+        if self.colour == Colour.RED:
+            if self.is_n_edge and self.is_s_edge:
+                return 'TopBottom'
+            if self.is_n_edge:
+                return 'Top'
+            if self.is_s_edge:
+                return 'Bottom'
+        if self.colour == Colour.BLUE:
+            if self.is_w_edge and self.is_e_edge:
+                return 'LeftRight'
+            if self.is_w_edge:
+                return 'Left'
+            if self.is_e_edge:
+                return 'Right'
         return 'Misc'
     
     def get_influence_region(self, board) -> set[tuple[int, int]]:

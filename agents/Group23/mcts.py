@@ -47,7 +47,7 @@ class MCTS:
 
         iterations = 0
         start_time = time.time()
-        number_of_workers = os.cpu_count()
+        number_of_workers = 1
 
         if number_of_workers is None:
             number_of_workers = 8
@@ -64,9 +64,6 @@ class MCTS:
                     _root.children[_root.children.index(child)].visits += child.visits
                     _root.children[_root.children.index(child)].wins += child.wins
 
-        finish_time = time.time()
-        print(f'Ran {iterations} simulations in {finish_time - start_time:.2f}s')
-
         # Choose the most visited child as the best move if visits > 0, otherwise -inf
         best_child = max(_root.children, key=lambda child: child.wins / child.visits if child.visits > 0 else float('-inf'))
         best_child.parent = None # Remove the parent reference to reduce memory overhead
@@ -76,6 +73,7 @@ class MCTS:
     def _select(self, node: TreeNode):
         """Selects a node to expand using the UCT formula."""
         moves = self.get_heuristic_moves(node)
+        node.prune_invalid_moves(moves)
         while node.is_fully_expanded(moves):
             node = node.best_child()
         return self._expand(node)
@@ -239,9 +237,5 @@ class MCTS:
                             count += 1                            
                     if count == 6:
                         #every neighbour tile has matched the pattern so this move is a dead cell
-                        #print("=======================")
-                        #print(boardActual.print_board())
-                        #print(board[move._x][move._y]._colour)
-                        #print(move)
                         return True
         return False
