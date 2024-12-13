@@ -116,6 +116,7 @@ class TreeNode:
     @property
     def moves(self) -> set[HeuristicMove]:
         ordered_moves = {
+            0: set(),
             1: set(),
             2: set(),
             3: set(),
@@ -126,9 +127,10 @@ class TreeNode:
             ordered_moves[move.priority].add(move)
 
         # Only return moves of the highest priority
-        for moves in ordered_moves.values():
+        for i in range(len(ordered_moves)):
+            moves = ordered_moves[i]
             if len(moves) > 0:
-                return moves
+                return moves    
         return set()
     
 
@@ -141,6 +143,7 @@ class TreeNode:
     def find_connected_chains(board: Board, colour: Colour) -> set[Chain]:
         """Finds all connected chains of the given colour."""
         chains = set()
+
 
         def dfs(position: tuple[int, int], chain: Chain, colour: Colour):
             x, y = position
@@ -184,11 +187,11 @@ class TreeNode:
                 if colour == Colour.RED:
                     # Connect edge-connected chain to opposite edge
                     if chain.chain_type == 'Top' and pos[0] == board.size - 1:
-                        move = HeuristicMove(pos[0], pos[1], 1)
+                        move = HeuristicMove(pos[0], pos[1], 0)
                         moves.add(move)
                         break
                     elif chain.chain_type == 'Bottom' and pos[0] == 0:
-                        move = HeuristicMove(pos[0], pos[1], 1)
+                        move = HeuristicMove(pos[0], pos[1], 0)
                         moves.add(move)
                         break
 
@@ -200,25 +203,25 @@ class TreeNode:
                         if (chain.chain_type == 'Top' and
                             other_chain.chain_type == 'Bottom' and
                             pos in other_chain.get_influence_region(board)):
-                            move = HeuristicMove(pos[0], pos[1], 1)
+                            move = HeuristicMove(pos[0], pos[1], 0)
                             moves.add(move)
                             break
 
                         if (chain.chain_type == 'Bottom' and
                             other_chain.chain_type == 'Top' and
                             pos in other_chain.get_influence_region(board)):
-                            move = HeuristicMove(pos[0], pos[1], 1)
+                            move = HeuristicMove(pos[0], pos[1], 0)
                             moves.add(move)
                             break
 
                 elif colour == Colour.BLUE:
                     # Connect edge-connected chain to opposite edge
                     if chain.chain_type == 'Left' and pos[1] == board.size - 1:
-                        move = HeuristicMove(pos[0], pos[1], 1)
+                        move = HeuristicMove(pos[0], pos[1], 0)
                         moves.add(move)
                         break
                     elif chain.chain_type == 'Right' and pos[1] == 0:
-                        move = HeuristicMove(pos[0], pos[1], 1)
+                        move = HeuristicMove(pos[0], pos[1], 0)
                         moves.add(move)
                         break
 
@@ -230,13 +233,13 @@ class TreeNode:
                         if (chain.chain_type == 'Left' and
                             other_chain.chain_type == 'Right' and
                             pos in other_chain.get_influence_region(board)):
-                            move = HeuristicMove(pos[0], pos[1], 1)
+                            move = HeuristicMove(pos[0], pos[1], 0)
                             moves.add(move)
                             break
                         if (chain.chain_type == 'Right' and
                             other_chain.chain_type == 'Left' and
                             pos in other_chain.get_influence_region(board)):
-                            move = HeuristicMove(pos[0], pos[1], 1)
+                            move = HeuristicMove(pos[0], pos[1], 0)
                             moves.add(move)
                             break
                     
