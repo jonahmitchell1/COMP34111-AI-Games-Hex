@@ -138,12 +138,6 @@ class MCTS:
         https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=4406406
         """
         moves = node.moves
-        print('======================================')
-        print(f'Retrieved {len(moves)} moves from the node.')
-        print(f'Moves:')
-        for move in moves:
-            print(f' - ({move.x}, {move.y}): priority {move.priority}')
-        
         moves = [Move(move.x, move.y) for move in moves]
 
         if len(moves) == 0:
