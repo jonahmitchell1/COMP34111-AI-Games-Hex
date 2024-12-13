@@ -75,7 +75,6 @@ class MCTSAgent(AgentBase):
                 prevColour = attemptedMove._colour
                 boardCopy._tiles[attemptedMove._x][attemptedMove._y]._colour = self.colour
                 if boardCopy.has_ended(self.colour):
-                    #print("RAHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH MAX IS THE BEST \n \n \n \n MAX IS THE BEST \n")
                     return Move(attemptedMove._x,attemptedMove._y)
                 else:
                     boardCopy._tiles[attemptedMove._x][attemptedMove._y]._colour = prevColour #revert change
