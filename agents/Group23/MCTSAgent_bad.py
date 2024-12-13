@@ -2,19 +2,18 @@ import logging
 from random import choice
 
 from agents.Group23.treenode import TreeNode
-from agents.Group23.utilities import Utilities
 from src.AgentBase import AgentBase
 from src.Move import Move
 from src.Board import Board
 from src.Colour import Colour
 
-from agents.Group23.mcts import MCTS
+from agents.Group23.mcts_bad import MCTS
 from agents.Group23.zobrist_hasher import ZobristHasher
-
-from copy import deepcopy
 
 class MCTSAgent(AgentBase):
     """An agent that uses MCTS for Hex."""
+    logger = logging.getLogger(__name__)
+
     # Strong opening moves for the agent.
     # Red moves first, then Blue.
     # Based on https://www.hexwiki.net/index.php/Openings_on_11_x_11#Without_swap
@@ -54,10 +53,12 @@ class MCTSAgent(AgentBase):
         """Selects a move using MCTS."""
         # First move - choose a fair move
         if opp_move == None:
+            self.logger.info('First move, choosing a fair move.')
             return choice(self.fair_opening_moves)
 
         if turn == 2 and opp_move in self.strong_opening_moves:
             # If the opponent makes a strong opening move, use the pie rule to swap.
+            self.logger.info('Opponent made a strong opening move, swapping.')
             return Move(-1, -1)
         
         # Look up move in transpotition table (if available)
@@ -65,28 +66,13 @@ class MCTSAgent(AgentBase):
         move = self.zobrist_hasher.get_move(hash)
         if move is not None:
             return Move(move[0], move[1])
-        
-        #manually check if a direct winning move exists (adds 0.008s per move but worth it)
-        boardCopy = deepcopy(board)
-        for row in boardCopy._tiles:
-            for attemptedMove in row:
-                if attemptedMove._colour != None:
-                    continue #dont overwrite an existing move
-                prevColour = attemptedMove._colour
-                boardCopy._tiles[attemptedMove._x][attemptedMove._y]._colour = self.colour
-                if boardCopy.has_ended(self.colour):
-                    return Move(attemptedMove._x,attemptedMove._y)
-                else:
-                    boardCopy._tiles[attemptedMove._x][attemptedMove._y]._colour = prevColour #revert change
-
 
         turn_length = self.allowed_time(turn)
         mcts = MCTS(self.colour, max_simulation_length=turn_length)
 
         if self.root is None:
-            self.root = TreeNode(board=board,
-             player=self.colour)
-        
+            self.root = TreeNode(board=board, player=self.colour)
+
         self.root = self.root.get_child(opp_move) # Update the node to the child corresponding to the opponent's move
         self.root, _ = mcts.run(self.root)
 
@@ -116,4 +102,5 @@ class MCTSAgent(AgentBase):
         turn_weight = weights[turn_number - 1]  # Turn number is 1-indexed.
         turn_time = (turn_weight / total_weight) * total_time
 
+        print(f'Allocated {turn_time:.2f}s for turn {turn_number}')
         return turn_time

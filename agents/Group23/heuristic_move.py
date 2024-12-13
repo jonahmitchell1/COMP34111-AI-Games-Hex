@@ -7,8 +7,9 @@ class HeuristicMove:
     A swap move is when x=-1 and y=-1.
     Priority is used to partition moves for consideration by priority.
     Priority is assigned as follows:
-    1. One-to-connect moves that connect the (1-edge-connected) chain to another edge
-       + One-possible-connect moves that can connect the (1-edge-connected) chain to another chain which is connected to the other edge 
+    0. One-to-connect moves that connect the (1-edge-connected) chain to another edge
+
+    1. One-possible-connect moves that can connect the (1-edge-connected) chain to another chain which is connected to the other edge 
        + Moves which block a one-to-connect move which finishes the game for the opponent
 
     2. One-to-connect moves that connect the chain to a new edge

@@ -20,7 +20,7 @@ class MCTS:
     def __init__(self, colour: Colour, max_simulation_length: float = 2.5, custom_trained_network=None):
         self.colour = colour  # Agent's colour
         self.max_simulation_length = max_simulation_length  # Length of a MCTS search in seconds
-        self.rollout_policy = RolloutPolicy.BRIDGE_ROLLOUT_POLICY
+        self.rollout_policy = RolloutPolicy.DEFAULT_POLICY
 
     def run_simulation_with_process(self, root: TreeNode, colour: Colour,start_time: float) -> int:
         """Runs a simulation with a new process."""
@@ -47,7 +47,7 @@ class MCTS:
 
         iterations = 0
         start_time = time.time()
-        number_of_workers = os.cpu_count()
+        number_of_workers = 1
 
         if number_of_workers is None:
             number_of_workers = 8
@@ -64,6 +64,9 @@ class MCTS:
                     _root.children[_root.children.index(child)].visits += child.visits
                     _root.children[_root.children.index(child)].wins += child.wins
 
+        finish_time = time.time()
+        print(f'Ran {iterations} simulations in {finish_time - start_time:.2f}s')
+
         # Choose the most visited child as the best move if visits > 0, otherwise -inf
         best_child = max(_root.children, key=lambda child: child.wins / child.visits if child.visits > 0 else float('-inf'))
         best_child.parent = None # Remove the parent reference to reduce memory overhead
@@ -72,15 +75,14 @@ class MCTS:
 
     def _select(self, node: TreeNode):
         """Selects a node to expand using the UCT formula."""
-        moves = self.get_heuristic_moves(node)
-        node.prune_invalid_moves(moves)
+        moves = self.get_all_moves(node.board)
         while node.is_fully_expanded(moves):
             node = node.best_child()
         return self._expand(node)
 
     def _expand(self, node: TreeNode):
         """Expands the node by adding a new child."""
-        moves = self.get_heuristic_moves(node)
+        moves = self.get_all_moves(node.board)
         unvisited_moves = [move for move in moves if (move.x, move.y) not in [(child.move.x, child.move.y) for child in node.children]]
 
         if len(unvisited_moves) > 0:
@@ -141,7 +143,7 @@ class MCTS:
         if len(moves) == 0:
             moves = self.get_all_moves(node.board)
 
-            moves = self._removeInferiorCells(moves, node.board)
+            # moves = self._removeInferiorCells(moves, node.board)
 
         return moves
 
@@ -237,5 +239,9 @@ class MCTS:
                             count += 1                            
                     if count == 6:
                         #every neighbour tile has matched the pattern so this move is a dead cell
+                        #print("=======================")
+                        #print(boardActual.print_board())
+                        #print(board[move._x][move._y]._colour)
+                        #print(move)
                         return True
         return False
